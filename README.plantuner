@@ -1,0 +1,15 @@
+plantuner module provides plantuner.forbid_index GUC which contains comma-separated 
+list of indexes forbidden to use in query.
+
+USAGE (see sql/plantuner.sql:
+% LOAD 'plantuner';
+% SET plantuner.forbid_index="i_idx, j_idx";
+% SET enable_seqscan=off;
+% explain SELECT * FROM wow;
+                                QUERY PLAN                                
+--------------------------------------------------------------------------
+ Seq Scan on wow  (cost=10000000000.00..10000000031.40 rows=2140 width=8)
+
+
+It's recommended to load library by shared_preload_libraries option
+in postgresql.conf
