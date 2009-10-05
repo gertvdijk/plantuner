@@ -1,30 +1,38 @@
 Plantuner - enable planner hints
 
-contrib/plantuner is a contribution module for PostgreSQL 8.4+, which enable 
-planner hints.
+   contrib/plantuner is a contribution module for PostgreSQL 8.4+, which
+   enable planner hints.
 
-All work was done by Teodor Sigaev (teodor@sigaev.ru) and 
- Oleg Bartunov (oleg@sai.msu.su).
+   All work was done by Teodor Sigaev (teodor@sigaev.ru) and Oleg Bartunov
+   (oleg@sai.msu.su).
 
-Sponsor: JFG Networks (www.jfg-networks.net)
+   Sponsor: Nomao project (http://www.nomao.com)
+
 Motivation
 
-It's very interesting to be able to control planner (provide hints), which is 
-currently impossible. This first version of plantuner provides a possibility to
-hide specified indexes from PostgreSQL planner, so it will not use them.
+   Whether somebody think it's bad or not, but sometime it's very
+   interesting to be able to control planner (provide hints, which tells
+   optimizer to ignore its algorithm in part), which is currently
+   impossible in POstgreSQL. Oracle, for example, has over 120 hints, SQL
+   Server also provides hints.
 
-There are many situation, when developer want to temporarily disable specific 
-index(es), without dropping them, or to instruct planner to use specific index.
+   This first version of plantuner provides a possibility to hide
+   specified indexes from PostgreSQL planner, so it will not use them.
+
+   There are many situation, when developer want to temporarily disable
+   specific index(es), without dropping them, or to instruct planner to
+   use specific index.
+
 Installation
 
-    * Get latest source of plantuner from CVS Repository
-    * gmake && gmake install && gmake installcheck
+     * Get latest source of plantuner from CVS Repository
+     * gmake && gmake install && gmake installcheck
 
 Usage
 
-To enable the module you can either load shared library 'plantuner' in psql 
-session or specify 'shared_preload_libraries' option in postgresql.conf.
-
+   To enable the module you can either load shared library 'plantuner' in
+   psql session or specify 'shared_preload_libraries' option in
+   postgresql.conf.
 =# LOAD 'plantuner';
 =# create table test(id int);
 =# create index id_idx on test(id);
@@ -62,4 +70,3 @@ Indexes:
  Seq Scan on test  (cost=10000000000.00..10000000040.00 rows=12 width=4)
    Filter: (id = 1)
 (2 rows)
-
