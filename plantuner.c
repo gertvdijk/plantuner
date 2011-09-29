@@ -66,7 +66,7 @@ indexesOutAssign(const char * newval, bool doit, GucSource source)
 		nOids = list_length(namelist);
 		newOids = malloc(sizeof(Oid) * (nOids+1));
 		if (!newOids)
-			elog(ERROR,"could not allocate %d bytes", sizeof(Oid) * (nOids+1));
+			elog(ERROR,"could not allocate %d bytes", (int)(sizeof(Oid) * (nOids+1)));
 	}
 
 	foreach(l, namelist)
@@ -76,12 +76,18 @@ indexesOutAssign(const char * newval, bool doit, GucSource source)
 
 		if (indexOid == InvalidOid)
 		{
-			elog(WARNING,"'%s' does not exist", curname);
+#if PG_VERSION_NUM >= 90100
+			if (doit == false)
+#endif
+				elog(WARNING,"'%s' does not exist", curname);
 			continue;
 		}
 		else if ( get_rel_relkind(indexOid) != RELKIND_INDEX )
 		{
-			elog(WARNING,"'%s' is not an index", curname);
+#if PG_VERSION_NUM >= 90100
+			if (doit == false)
+#endif
+				elog(WARNING,"'%s' is not an index", curname);
 			continue;
 		}
 		else if (doit)
@@ -109,6 +115,30 @@ cleanup:
 	return NULL;
 }
 
+#if PG_VERSION_NUM >= 90100
+
+static bool
+indexesOutCheck(char **newval, void **extra, GucSource source)
+{
+	char *val;
+
+	val = (char*)indexesOutAssign(*newval, false, source);
+
+	if (val)
+	{
+		*newval = val;
+		return true;
+	}
+
+	return false;
+}
+static void
+indexesOutAssignNew(const char *newval, void *extra)
+{
+	indexesOutAssign(newval, true, PGC_S_USER /* doesn't matter */);
+}
+
+#endif
 
 static void
 indexFilter(PlannerInfo *root, Oid relationObjectId, bool inhparent, RelOptInfo *rel) {
@@ -178,7 +208,12 @@ _PG_init(void)
 		"",
 		PGC_USERSET,
 		0,
+#if PG_VERSION_NUM >= 90100
+		indexesOutCheck,
+		indexesOutAssignNew,
+#else
 		indexesOutAssign,
+#endif
 		IndexFilterShow
 	);
 
