@@ -24,7 +24,7 @@ Motivation
    use specific index.
 
    Next, for some workload PostgreSQL could be too pessimistic for
-   newly created tables and assumps much more rows in table than
+   newly created tables and assumes much more rows in table than
    it actually has. If plantuner.fix_empty_table GUC variable is set
    to true then module will set to zero number of pages/tuples of
    table which hasn't blocks in file.
