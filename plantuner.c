@@ -30,19 +30,23 @@
 #include <postgres.h>
 
 #include <fmgr.h>
+#include <access/heapam.h>
 #include <catalog/namespace.h>
 #include <catalog/pg_class.h>
 #include <nodes/pg_list.h>
 #include <optimizer/plancat.h>
+#include <storage/bufmgr.h>
 #include <utils/builtins.h>
 #include <utils/guc.h>
 #include <utils/lsyscache.h>
+#include <utils/rel.h>
 
 PG_MODULE_MAGIC;
 
 static int 	nIndexesOut = 0;
 static Oid	*indexesOut = NULL;
 get_relation_info_hook_type	prevHook = NULL;
+static bool	fix_empty_table = false;
 
 static char *indexesOutStr = "";
 
@@ -160,6 +164,35 @@ indexFilter(PlannerInfo *root, Oid relationObjectId, bool inhparent, RelOptInfo 
 		}
 	}
 
+	if (fix_empty_table && rel)
+	{
+		
+
+	}
+
+}
+
+static void
+execPlantuner(PlannerInfo *root, Oid relationObjectId, bool inhparent, RelOptInfo *rel) {
+	Relation 	relation;
+
+	relation = heap_open(relationObjectId, NoLock);
+	if (relation->rd_rel->relkind == RELKIND_RELATION)
+	{
+		if (fix_empty_table && RelationGetNumberOfBlocks(relation) == 0)
+		{
+			/*
+			 * estimate_rel_size() could be too pessimistic for particular
+			 * workload
+			 */
+			rel->pages = 0.0;
+			rel->tuples = 0.0;
+		}
+
+		indexFilter(root, relationObjectId, inhparent, rel);
+	}
+	heap_close(relation, NoLock);
+
 	/*
 	 * Call next hook if it exists 
 	 */
@@ -217,9 +250,28 @@ _PG_init(void)
 		IndexFilterShow
 	);
 
-	if (get_relation_info_hook != indexFilter )
+    DefineCustomBoolVariable(
+		"plantuner.fix_empty_table",
+		"Sets to zero estimations for empty tables",
+		"Sets to zero estimations for empty or newly created tables",
+		&fix_empty_table,
+#if PG_VERSION_NUM >= 80400
+		fix_empty_table,
+#endif
+		PGC_USERSET,
+#if PG_VERSION_NUM >= 80400
+		GUC_NOT_IN_SAMPLE,
+#if PG_VERSION_NUM >= 90100
+		NULL,
+#endif
+#endif
+		NULL,
+		NULL
+	);
+
+	if (get_relation_info_hook != execPlantuner )
 	{
 		prevHook = get_relation_info_hook;
-		get_relation_info_hook = indexFilter;
+		get_relation_info_hook = execPlantuner;
 	}
 }
