@@ -1,7 +1,7 @@
 LOAD 'plantuner';
-SHOW	plantuner.forbid_index;
- plantuner.forbid_index 
-------------------------
+SHOW	plantuner.disable_index;
+ plantuner.disable_index 
+-------------------------
  
 (1 row)
 
@@ -14,24 +14,36 @@ SELECT * FROM wow;
 ---+---
 (0 rows)
 
-SET plantuner.forbid_index="i_idx, j_idx";
+SET plantuner.disable_index="i_idx, j_idx";
 SELECT * FROM wow;
  i | j 
 ---+---
 (0 rows)
 
-SHOW plantuner.forbid_index;
-   plantuner.forbid_index   
+SHOW plantuner.disable_index;
+  plantuner.disable_index   
 ----------------------------
  public.i_idx, public.j_idx
 (1 row)
 
-SET plantuner.forbid_index="i_idx, nonexistent, public.j_idx, wow";
+SET plantuner.disable_index="i_idx, nonexistent, public.j_idx, wow";
 WARNING:  'nonexistent' does not exist
 WARNING:  'wow' is not an index
-SHOW plantuner.forbid_index;
-   plantuner.forbid_index   
+SHOW plantuner.disable_index;
+  plantuner.disable_index   
 ----------------------------
  public.i_idx, public.j_idx
 (1 row)
+
+SET plantuner.enable_index="i_idx";
+SHOW plantuner.enable_index;
+ plantuner.enable_index 
+------------------------
+ public.i_idx
+(1 row)
+
+SELECT * FROM wow;
+ i | j 
+---+---
+(0 rows)
 

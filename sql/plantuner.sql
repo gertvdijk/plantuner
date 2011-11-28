@@ -1,6 +1,6 @@
 LOAD 'plantuner';
 
-SHOW	plantuner.forbid_index;
+SHOW	plantuner.disable_index;
 
 CREATE TABLE wow (i int, j int);
 CREATE INDEX i_idx ON wow (i);
@@ -10,12 +10,18 @@ SET enable_seqscan=off;
 
 SELECT * FROM wow;
 
-SET plantuner.forbid_index="i_idx, j_idx";
+SET plantuner.disable_index="i_idx, j_idx";
 
 SELECT * FROM wow;
 
-SHOW plantuner.forbid_index;
+SHOW plantuner.disable_index;
 
-SET plantuner.forbid_index="i_idx, nonexistent, public.j_idx, wow";
+SET plantuner.disable_index="i_idx, nonexistent, public.j_idx, wow";
 
-SHOW plantuner.forbid_index;
+SHOW plantuner.disable_index;
+
+SET plantuner.enable_index="i_idx";
+
+SHOW plantuner.enable_index;
+
+SELECT * FROM wow;
