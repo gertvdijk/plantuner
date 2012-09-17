@@ -225,13 +225,6 @@ indexFilter(PlannerInfo *root, Oid relationObjectId, bool inhparent, RelOptInfo 
 			}
 		}
 	}
-
-	if (fix_empty_table && rel)
-	{
-		
-
-	}
-
 }
 
 static void
