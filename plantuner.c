@@ -272,7 +272,7 @@ IndexFilterShow(Oid* indexes, int nIndexes)
 	len = 1 /* \0 */ + nIndexes * (2 * NAMEDATALEN + 2 /* ', ' */ + 1 /* . */);
 	ptr = val = palloc(len);
 
-	*ptr ='\0';
+	*ptr =(char)'\0';
 	for(i=0; i<nIndexes; i++)
 	{
 		char 	*relname = get_rel_name(indexes[i]);
