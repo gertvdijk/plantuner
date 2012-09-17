@@ -81,11 +81,13 @@ indexesAssign(const char * newval, bool doit, GucSource source, bool isDisable)
 	foreach(l, namelist)
 	{
 		char     	*curname = (char *) lfirst(l);
-		Oid			indexOid = RangeVarGetRelid(makeRangeVarFromNameList(stringToQualifiedNameList(curname)), 
 #if PG_VERSION_NUM >= 90200
-												NoLock,
-#endif
+		Oid			indexOid = RangeVarGetRelid(makeRangeVarFromNameList(stringToQualifiedNameList(curname)), 
+												NoLock, true);
+#else
+		Oid			indexOid = RangeVarGetRelid(makeRangeVarFromNameList(stringToQualifiedNameList(curname)), 
 												true);
+#endif
 
 		if (indexOid == InvalidOid)
 		{
