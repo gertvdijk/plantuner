@@ -292,13 +292,13 @@ IndexFilterShow(Oid* indexes, int nIndexes)
 }
 
 static const char*
-disabledIndexFilterShow()
+disabledIndexFilterShow(void)
 {
 	return IndexFilterShow(disabledIndexes, nDisabledIndexes);
 }
 
 static const char*
-enabledIndexFilterShow()
+enabledIndexFilterShow(void)
 {
 	return IndexFilterShow(enabledIndexes, nEnabledIndexes);
 }
