@@ -6,13 +6,13 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *		notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *        notice, this list of conditions and the following disclaimer in the
- *        documentation and/or other materials provided with the distribution.
+ *		notice, this list of conditions and the following disclaimer in the
+ *		documentation and/or other materials provided with the distribution.
  * 3. Neither the name of the author nor the names of any co-contributors
- *        may be used to endorse or promote products derived from this software
- *        without specific prior written permission.
+ *		may be used to endorse or promote products derived from this software
+ *		without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY CONTRIBUTORS ``AS IS'' AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -43,11 +43,11 @@
 
 PG_MODULE_MAGIC;
 
-static int 	nDisabledIndexes = 0;
+static int	nDisabledIndexes = 0;
 static Oid	*disabledIndexes = NULL;
 static char *disableIndexesOutStr = "";
 
-static int 	nEnabledIndexes = 0;
+static int	nEnabledIndexes = 0;
 static Oid	*enabledIndexes = NULL;
 static char *enableIndexesOutStr = "";
 
@@ -56,11 +56,11 @@ static bool	fix_empty_table = false;
 
 
 static const char *
-indexesAssign(const char * newval, bool doit, GucSource source, bool isDisable) 
+indexesAssign(const char * newval, bool doit, GucSource source, bool isDisable)
 {
-	char       *rawname;
-	List       *namelist;
-	ListCell   *l;
+	char		*rawname;
+	List		*namelist;
+	ListCell	*l;
 	Oid			*newOids = NULL;
 	int			nOids = 0,
 				i = 0;
@@ -70,23 +70,26 @@ indexesAssign(const char * newval, bool doit, GucSource source, bool isDisable)
 	if (!SplitIdentifierString(rawname, ',', &namelist))
 		goto cleanup;
 
-	if (doit) 
+	if (doit)
 	{
 		nOids = list_length(namelist);
 		newOids = malloc(sizeof(Oid) * (nOids+1));
 		if (!newOids)
-			elog(ERROR,"could not allocate %d bytes", (int)(sizeof(Oid) * (nOids+1)));
+			elog(ERROR,"could not allocate %d bytes",
+				 (int)(sizeof(Oid) * (nOids+1)));
 	}
 
 	foreach(l, namelist)
 	{
-		char     	*curname = (char *) lfirst(l);
+		char	*curname = (char *) lfirst(l);
 #if PG_VERSION_NUM >= 90200
-		Oid			indexOid = RangeVarGetRelid(makeRangeVarFromNameList(stringToQualifiedNameList(curname)), 
-												NoLock, true);
+		Oid		indexOid = RangeVarGetRelid(
+				makeRangeVarFromNameList(stringToQualifiedNameList(curname)),
+											NoLock, true);
 #else
-		Oid			indexOid = RangeVarGetRelid(makeRangeVarFromNameList(stringToQualifiedNameList(curname)), 
-												true);
+		Oid		indexOid = RangeVarGetRelid(
+				makeRangeVarFromNameList(stringToQualifiedNameList(curname)),
+											true);
 #endif
 
 		if (indexOid == InvalidOid)
@@ -111,7 +114,7 @@ indexesAssign(const char * newval, bool doit, GucSource source, bool isDisable)
 		}
 	}
 
-	if (doit) 
+	if (doit)
 	{
 		if (isDisable)
 		{
@@ -141,13 +144,13 @@ cleanup:
 static const char *
 assignDisabledIndexes(const char * newval, bool doit, GucSource source)
 {
-	return indexesAssign(newval, doit, source, true);	
+	return indexesAssign(newval, doit, source, true);
 }
 
 static const char *
 assignEnabledIndexes(const char * newval, bool doit, GucSource source)
 {
-	return indexesAssign(newval, doit, source, false);	
+	return indexesAssign(newval, doit, source, false);
 }
 
 #if PG_VERSION_NUM >= 90100
@@ -199,7 +202,9 @@ assignEnabledIndexesNew(const char *newval, void *extra)
 #endif
 
 static void
-indexFilter(PlannerInfo *root, Oid relationObjectId, bool inhparent, RelOptInfo *rel) {
+indexFilter(PlannerInfo *root, Oid relationObjectId, bool inhparent,
+			RelOptInfo *rel)
+{
 	int i;
 
 	for(i=0;i<nDisabledIndexes;i++)
@@ -228,8 +233,10 @@ indexFilter(PlannerInfo *root, Oid relationObjectId, bool inhparent, RelOptInfo 
 }
 
 static void
-execPlantuner(PlannerInfo *root, Oid relationObjectId, bool inhparent, RelOptInfo *rel) {
-	Relation 	relation;
+execPlantuner(PlannerInfo *root, Oid relationObjectId, bool inhparent,
+			  RelOptInfo *rel)
+{
+	Relation	relation;
 
 	relation = heap_open(relationObjectId, NoLock);
 	if (relation->rd_rel->relkind == RELKIND_RELATION)
@@ -249,17 +256,17 @@ execPlantuner(PlannerInfo *root, Oid relationObjectId, bool inhparent, RelOptInf
 	heap_close(relation, NoLock);
 
 	/*
-	 * Call next hook if it exists 
+	 * Call next hook if it exists
 	 */
 	if (prevHook)
 		prevHook(root, relationObjectId, inhparent, rel);
 }
 
 static const char*
-IndexFilterShow(Oid* indexes, int nIndexes) 
+IndexFilterShow(Oid* indexes, int nIndexes)
 {
-	char 	*val, *ptr;
-	int 	i,
+	char	*val, *ptr;
+	int		i,
 			len;
 
 	len = 1 /* \0 */ + nIndexes * (2 * NAMEDATALEN + 2 /* ', ' */ + 1 /* . */);
@@ -268,9 +275,9 @@ IndexFilterShow(Oid* indexes, int nIndexes)
 	*ptr =(char)'\0';
 	for(i=0; i<nIndexes; i++)
 	{
-		char 	*relname = get_rel_name(indexes[i]);
-		Oid 	nspOid = get_rel_namespace(indexes[i]);
-		char 	*nspname = get_namespace_name(nspOid); 
+		char	*relname = get_rel_name(indexes[i]);
+		Oid		nspOid = get_rel_namespace(indexes[i]);
+		char	*nspname = get_namespace_name(nspOid);
 
 		if ( relname == NULL || nspOid == InvalidOid || nspname == NULL )
 			continue;
@@ -298,9 +305,9 @@ enabledIndexFilterShow(void)
 
 void _PG_init(void);
 void
-_PG_init(void) 
+_PG_init(void)
 {
-    DefineCustomStringVariable(
+	DefineCustomStringVariable(
 		"plantuner.forbid_index",
 		"List of forbidden indexes (deprecated)",
 		"Listed indexes will not be used in queries (deprecated, use plantuner.disable_index)",
@@ -317,7 +324,7 @@ _PG_init(void)
 		disabledIndexFilterShow
 	);
 
-    DefineCustomStringVariable(
+	DefineCustomStringVariable(
 		"plantuner.disable_index",
 		"List of disabled indexes",
 		"Listed indexes will not be used in queries",
@@ -334,7 +341,7 @@ _PG_init(void)
 		disabledIndexFilterShow
 	);
 
-    DefineCustomStringVariable(
+	DefineCustomStringVariable(
 		"plantuner.enable_index",
 		"List of enabled indexes (overload plantuner.disable_index)",
 		"Listed indexes which could be used in queries even they are listed in plantuner.disable_index",
@@ -351,7 +358,7 @@ _PG_init(void)
 		enabledIndexFilterShow
 	);
 
-    DefineCustomBoolVariable(
+	DefineCustomBoolVariable(
 		"plantuner.fix_empty_table",
 		"Sets to zero estimations for empty tables",
 		"Sets to zero estimations for empty or newly created tables",
