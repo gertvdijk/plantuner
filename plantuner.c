@@ -40,6 +40,10 @@
 #include <utils/guc.h>
 #include <utils/lsyscache.h>
 #include <utils/rel.h>
+#if PG_VERSION_NUM >= 100000
+#include <utils/regproc.h>
+#include <utils/varlena.h>
+#endif
 
 PG_MODULE_MAGIC;
 
