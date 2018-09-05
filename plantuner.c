@@ -122,12 +122,16 @@ indexesAssign(const char * newval, bool doit, GucSource source, bool isDisable)
 	{
 		if (isDisable)
 		{
-			nDisabledIndexes = nOids;
+			nDisabledIndexes = i;
+			if (disabledIndexes)
+				free(disabledIndexes);
 			disabledIndexes = newOids;
 		}
 		else
 		{
-			nEnabledIndexes = nOids;
+			nEnabledIndexes = i;
+			if (enabledIndexes)
+				free(enabledIndexes);
 			enabledIndexes = newOids;
 		}
 	}
