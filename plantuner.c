@@ -30,6 +30,7 @@
 #include <postgres.h>
 
 #include <fmgr.h>
+#include <miscadmin.h>
 #include <access/heapam.h>
 #include <catalog/namespace.h>
 #include <catalog/pg_class.h>
@@ -58,6 +59,8 @@ static char *enableIndexesOutStr = "";
 get_relation_info_hook_type	prevHook = NULL;
 static bool	fix_empty_table = false;
 
+static bool	plantuner_enable_inited = false;
+static bool	plantuner_disable_inited = false;
 
 static const char *
 indexesAssign(const char * newval, bool doit, GucSource source, bool isDisable)
@@ -82,6 +85,19 @@ indexesAssign(const char * newval, bool doit, GucSource source, bool isDisable)
 			elog(ERROR,"could not allocate %d bytes",
 				 (int)(sizeof(Oid) * (nOids+1)));
 	}
+
+	/*
+	 * follow work could be done only in normal processing because of
+	 * accsess to system catalog
+	 */
+	if (MyBackendId == InvalidBackendId || !IsUnderPostmaster ||
+		!IsNormalProcessingMode() || MyAuxProcType != NotAnAuxProcess)
+		return newval;
+
+	if (isDisable)
+		plantuner_disable_inited = true;
+	else
+		plantuner_enable_inited = true;
 
 	foreach(l, namelist)
 	{
@@ -161,6 +177,15 @@ assignEnabledIndexes(const char * newval, bool doit, GucSource source)
 	return indexesAssign(newval, doit, source, false);
 }
 
+static void
+lateInit()
+{
+	if (!plantuner_enable_inited)
+		indexesAssign(enableIndexesOutStr, true, PGC_S_USER, false);
+	if (!plantuner_disable_inited)
+		indexesAssign(disableIndexesOutStr, true, PGC_S_USER, true);
+}
+
 #if PG_VERSION_NUM >= 90100
 
 static bool
@@ -214,6 +239,8 @@ indexFilter(PlannerInfo *root, Oid relationObjectId, bool inhparent,
 			RelOptInfo *rel)
 {
 	int i;
+
+	lateInit();
 
 	for(i=0;i<nDisabledIndexes;i++)
 	{
@@ -276,6 +303,8 @@ IndexFilterShow(Oid* indexes, int nIndexes)
 	char	*val, *ptr;
 	int		i,
 			len;
+
+	lateInit();
 
 	len = 1 /* \0 */ + nIndexes * (2 * NAMEDATALEN + 2 /* ', ' */ + 1 /* . */);
 	ptr = val = palloc(len);
