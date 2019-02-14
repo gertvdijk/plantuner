@@ -32,6 +32,7 @@
 #include <fmgr.h>
 #include <miscadmin.h>
 #include <access/heapam.h>
+#include <access/xact.h>
 #include <catalog/namespace.h>
 #include <catalog/pg_class.h>
 #include <nodes/pg_list.h>
@@ -77,6 +78,23 @@ indexesAssign(const char * newval, bool doit, GucSource source, bool isDisable)
 	if (!SplitIdentifierString(rawname, ',', &namelist))
 		goto cleanup;
 
+	/*
+	 * follow work could be done only in normal processing because of
+	 * accsess to system catalog
+	 */
+	if (MyBackendId == InvalidBackendId || !IsUnderPostmaster ||
+		!IsNormalProcessingMode() || MyAuxProcType != NotAnAuxProcess ||
+		!IsTransactionState())
+	{
+		/* reset init state */
+		if (isDisable)
+			plantuner_disable_inited = false;
+		else
+			plantuner_enable_inited = false;
+
+		return newval;
+	}
+
 	if (doit)
 	{
 		nOids = list_length(namelist);
@@ -85,14 +103,6 @@ indexesAssign(const char * newval, bool doit, GucSource source, bool isDisable)
 			elog(ERROR,"could not allocate %d bytes",
 				 (int)(sizeof(Oid) * (nOids+1)));
 	}
-
-	/*
-	 * follow work could be done only in normal processing because of
-	 * accsess to system catalog
-	 */
-	if (MyBackendId == InvalidBackendId || !IsUnderPostmaster ||
-		!IsNormalProcessingMode() || MyAuxProcType != NotAnAuxProcess)
-		return newval;
 
 	if (isDisable)
 		plantuner_disable_inited = true;
