@@ -83,7 +83,7 @@ indexesAssign(const char * newval, bool doit, GucSource source, bool isDisable)
 	 * accsess to system catalog
 	 */
 	if (MyBackendId == InvalidBackendId || !IsUnderPostmaster ||
-		!IsNormalProcessingMode() || !IsTransactionState())
+		MyAuxProcType != NotAnAuxProcess ||	!IsTransactionState())
 	{
 		/* reset init state */
 		if (isDisable)
