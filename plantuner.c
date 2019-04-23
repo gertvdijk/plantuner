@@ -291,7 +291,7 @@ execPlantuner(PlannerInfo *root, Oid relationObjectId, bool inhparent,
 			 * estimate_rel_size() could be too pessimistic for particular
 			 * workload
 			 */
-			rel->pages = 0.0;
+			rel->pages = 1.0;
 			rel->tuples = 0.0;
 		}
 
