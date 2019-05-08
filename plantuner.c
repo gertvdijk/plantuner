@@ -57,14 +57,26 @@ static int	nEnabledIndexes = 0;
 static Oid	*enabledIndexes = NULL;
 static char *enableIndexesOutStr = "";
 
+static int	nOnlyIndexes = 0;
+static Oid	*onlyIndexes = NULL;
+static char *onlyIndexesOutStr = "";
+
 get_relation_info_hook_type	prevHook = NULL;
 static bool	fix_empty_table = false;
 
 static bool	plantuner_enable_inited = false;
+static bool	plantuner_only_inited = false;
 static bool	plantuner_disable_inited = false;
 
+typedef enum IndexListKind {
+	EnabledKind,
+	DisabledKind,
+	OnlyKind
+} IndexListKind;
+
 static const char *
-indexesAssign(const char * newval, bool doit, GucSource source, bool isDisable)
+indexesAssign(const char * newval, bool doit, GucSource source,
+			  IndexListKind kind)
 {
 	char		*rawname;
 	List		*namelist;
@@ -86,10 +98,20 @@ indexesAssign(const char * newval, bool doit, GucSource source, bool isDisable)
 		!IsTransactionState())
 	{
 		/* reset init state */
-		if (isDisable)
-			plantuner_disable_inited = false;
-		else
-			plantuner_enable_inited = false;
+		switch(kind)
+		{
+			case EnabledKind:
+				plantuner_enable_inited = false;
+				break;
+			case DisabledKind:
+				plantuner_disable_inited = false;
+				break;
+			case OnlyKind:
+				plantuner_only_inited = false;
+				break;
+			default:
+				elog(ERROR, "wrong kind");
+		}
 
 		return newval;
 	}
@@ -103,10 +125,20 @@ indexesAssign(const char * newval, bool doit, GucSource source, bool isDisable)
 				 (int)(sizeof(Oid) * (nOids+1)));
 	}
 
-	if (isDisable)
-		plantuner_disable_inited = true;
-	else
-		plantuner_enable_inited = true;
+	switch(kind)
+	{
+		case EnabledKind:
+			plantuner_enable_inited = true;
+			break;
+		case DisabledKind:
+			plantuner_disable_inited = true;
+			break;
+		case OnlyKind:
+			plantuner_only_inited = true;
+			break;
+		default:
+			elog(ERROR, "wrong kind");
+	}
 
 	foreach(l, namelist)
 	{
@@ -145,19 +177,28 @@ indexesAssign(const char * newval, bool doit, GucSource source, bool isDisable)
 
 	if (doit)
 	{
-		if (isDisable)
+		switch(kind)
 		{
-			nDisabledIndexes = i;
-			if (disabledIndexes)
-				free(disabledIndexes);
-			disabledIndexes = newOids;
-		}
-		else
-		{
-			nEnabledIndexes = i;
-			if (enabledIndexes)
-				free(enabledIndexes);
-			enabledIndexes = newOids;
+			case EnabledKind:
+				nEnabledIndexes = i;
+				if (enabledIndexes)
+					free(enabledIndexes);
+				enabledIndexes = newOids;
+				break;
+			case DisabledKind:
+				nDisabledIndexes = i;
+				if (disabledIndexes)
+					free(disabledIndexes);
+				disabledIndexes = newOids;
+				break;
+			case OnlyKind:
+				nOnlyIndexes = i;
+				if (onlyIndexes)
+					free(onlyIndexes);
+				onlyIndexes = newOids;
+				break;
+			default:
+				elog(ERROR, "wrong kind");
 		}
 	}
 
@@ -177,32 +218,56 @@ cleanup:
 static const char *
 assignDisabledIndexes(const char * newval, bool doit, GucSource source)
 {
-	return indexesAssign(newval, doit, source, true);
+	return indexesAssign(newval, doit, source, DisabledKind);
 }
 
 static const char *
 assignEnabledIndexes(const char * newval, bool doit, GucSource source)
 {
-	return indexesAssign(newval, doit, source, false);
+	return indexesAssign(newval, doit, source, EnabledKind);
+}
+
+static const char *
+assignOnlyIndexes(const char * newval, bool doit, GucSource source)
+{
+	return indexesAssign(newval, doit, source, OnlyKind);
 }
 
 static void
 lateInit()
 {
+	if (!plantuner_only_inited)
+		indexesAssign(onlyIndexesOutStr, true, PGC_S_USER, OnlyKind);
 	if (!plantuner_enable_inited)
-		indexesAssign(enableIndexesOutStr, true, PGC_S_USER, false);
+		indexesAssign(enableIndexesOutStr, true, PGC_S_USER, EnabledKind);
 	if (!plantuner_disable_inited)
-		indexesAssign(disableIndexesOutStr, true, PGC_S_USER, true);
+		indexesAssign(disableIndexesOutStr, true, PGC_S_USER, DisabledKind);
 }
 
 #if PG_VERSION_NUM >= 90100
+
+static bool
+checkOnlyIndexes(char **newval, void **extra, GucSource source)
+{
+	char *val;
+
+	val = (char*)indexesAssign(*newval, false, source, OnlyKind);
+
+	if (val)
+	{
+		*newval = val;
+		return true;
+	}
+
+	return false;
+}
 
 static bool
 checkDisabledIndexes(char **newval, void **extra, GucSource source)
 {
 	char *val;
 
-	val = (char*)indexesAssign(*newval, false, source, true);
+	val = (char*)indexesAssign(*newval, false, source, DisabledKind);
 
 	if (val)
 	{
@@ -218,7 +283,7 @@ checkEnabledIndexes(char **newval, void **extra, GucSource source)
 {
 	char *val;
 
-	val = (char*)indexesAssign(*newval, false, source, false);
+	val = (char*)indexesAssign(*newval, false, source, EnabledKind);
 
 	if (val)
 	{
@@ -241,6 +306,12 @@ assignEnabledIndexesNew(const char *newval, void *extra)
 	assignEnabledIndexes(newval, true, PGC_S_USER /* doesn't matter */);
 }
 
+static void
+assignOnlyIndexesNew(const char *newval, void *extra)
+{
+	assignOnlyIndexes(newval, true, PGC_S_USER /* doesn't matter */);
+}
+
 #endif
 
 static void
@@ -251,7 +322,27 @@ indexFilter(PlannerInfo *root, Oid relationObjectId, bool inhparent,
 
 	lateInit();
 
-	for(i=0;i<nDisabledIndexes;i++)
+	if (nOnlyIndexes > 0)
+	{
+		ListCell	*l;
+
+		foreach(l, rel->indexlist)
+		{
+			IndexOptInfo	*info = (IndexOptInfo*)lfirst(l);
+			bool			remove = true;
+
+			for(i=0; remove && i<nOnlyIndexes; i++)
+				if (onlyIndexes[i] == info->indexoid)
+					remove = false;
+
+			if (remove)
+				rel->indexlist = list_delete_ptr(rel->indexlist, info);
+		}
+
+		return;
+	}
+
+	for(i=0; i<nDisabledIndexes; i++)
 	{
 		ListCell   *l;
 
@@ -349,6 +440,12 @@ enabledIndexFilterShow(void)
 	return IndexFilterShow(enabledIndexes, nEnabledIndexes);
 }
 
+static const char*
+onlyIndexFilterShow(void)
+{
+	return IndexFilterShow(onlyIndexes, nOnlyIndexes);
+}
+
 void _PG_init(void);
 void
 _PG_init(void)
@@ -402,6 +499,23 @@ _PG_init(void)
 		assignEnabledIndexes,
 #endif
 		enabledIndexFilterShow
+	);
+
+	DefineCustomStringVariable(
+		"plantuner.only_index",
+		"List of explicitly enabled indexes (overload plantuner.disable_index and plantuner.enable_index)",
+		"Only indexes in this list are allowed",
+		&onlyIndexesOutStr,
+		"",
+		PGC_USERSET,
+		0,
+#if PG_VERSION_NUM >= 90100
+		checkOnlyIndexes,
+		assignOnlyIndexesNew,
+#else
+		assignOnlyIndexes,
+#endif
+		onlyIndexFilterShow
 	);
 
 	DefineCustomBoolVariable(

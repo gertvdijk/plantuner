@@ -41,6 +41,9 @@ Syntax
 	plantuner.enable_index
 		List of indexes visible to planner even they are hided
 		by plantuner.disable_index. 
+	plantuner.only_index
+		List of explicitly enabled indexes (overload plantuner.disable_index
+		and plantuner.enable_index), so, only indexes in this list are allowed.
 
 Usage
 
