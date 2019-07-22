@@ -326,6 +326,7 @@ indexFilter(PlannerInfo *root, Oid relationObjectId, bool inhparent,
 	{
 		ListCell	*l;
 
+restart1:
 		foreach(l, rel->indexlist)
 		{
 			IndexOptInfo	*info = (IndexOptInfo*)lfirst(l);
@@ -336,7 +337,10 @@ indexFilter(PlannerInfo *root, Oid relationObjectId, bool inhparent,
 					remove = false;
 
 			if (remove)
+			{
 				rel->indexlist = list_delete_ptr(rel->indexlist, info);
+				goto restart1;
+			}
 		}
 
 		return;
